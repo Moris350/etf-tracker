@@ -1,0 +1,2 @@
+Flask==3.0.0
+# Add any other dependencies if necessary, but skipping playwright because Vercel free tier won't use it.
