@@ -125,8 +125,10 @@ def fetch_data(fund_id, fund_type):
                         continue
                         
                     # DEBUG SNAPSHOT
-                    os.makedirs("/app/data", exist_ok=True)
-                    with open("/app/data/debug.html", "w", encoding="utf-8") as f:
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    data_dir = os.path.join(base_dir, "data")
+                    os.makedirs(data_dir, exist_ok=True)
+                    with open(os.path.join(data_dir, "debug.html"), "w", encoding="utf-8") as f:
                         f.write(html)
 
                     if fund_type == 'harel':
@@ -195,14 +197,16 @@ def main():
     val = fetch_data(fund_id, fund_target)
     
     if val is not None:
-        os.makedirs("/app/data", exist_ok=True)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(base_dir, "data")
+        os.makedirs(data_dir, exist_ok=True)
         
         if fund_target == 'harel':
             # val is already a dictionary mapped from TASE
-            save_to_csv("/app/data/harel_history.csv", val, "Units")
+            save_to_csv(os.path.join(data_dir, "harel_history.csv"), val, "Units")
         else:
             # IBI truncated to 2 decimals, dynamically cast into a single-entry dict to fit unified function
-            save_to_csv("/app/data/ibi_history.csv", {today_str: round(val, 2)}, "Assets")
+            save_to_csv(os.path.join(data_dir, "ibi_history.csv"), {today_str: round(val, 2)}, "Assets")
     else:
         print(f"FAILED to update {fund_target.upper()}.")
 

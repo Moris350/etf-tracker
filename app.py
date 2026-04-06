@@ -26,8 +26,9 @@ def index():
 
 @app.route('/data')
 def get_data():
-    harel_data = read_fund_data("/app/data/harel_history.csv", "Units", True)
-    ibi_data = read_fund_data("/app/data/ibi_history.csv", "Assets", False)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    harel_data = read_fund_data(os.path.join(base_dir, "data", "harel_history.csv"), "Units", True)
+    ibi_data = read_fund_data(os.path.join(base_dir, "data", "ibi_history.csv"), "Assets", False)
     
     all_dates = sorted(list(set(harel_data.keys()).union(set(ibi_data.keys()))))
     
@@ -49,7 +50,8 @@ def force_update():
     try:
         # Use sys.executable to ensure we use the correct python interpreter inside docker
         python_bin = sys.executable
-        script_path = '/app/track_etf_units.py'
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(base_dir, 'track_etf_units.py')
         
         # Run Harel update
         res_harel = subprocess.run([python_bin, script_path, 'harel'], capture_output=True, text=True)
