@@ -7,17 +7,16 @@ RUN playwright install chromium
 RUN playwright install-deps chromium
 
 # Create Cron file
-# Harel: Every day at 18:30
 RUN echo "30 18 * * * cd /app && /usr/local/bin/python track_etf_units.py harel >> /var/log/cron.log 2>&1" > /etc/cron.d/etf_cron
-
-# Technology: Every day at 18:35
 RUN echo "35 18 * * * cd /app && /usr/local/bin/python track_etf_units.py tech >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
-
-# Real Estate: Every day at 18:40
 RUN echo "40 18 * * * cd /app && /usr/local/bin/python track_etf_units.py realestate >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
-
-# IBI: Every day at 21:00
-RUN echo "0 21 * * * cd /app && /usr/local/bin/python track_etf_units.py ibi >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "45 18 * * * cd /app && /usr/local/bin/python track_etf_units.py banks >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "50 18 * * * cd /app && /usr/local/bin/python track_etf_units.py oil >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "55 18 * * * cd /app && /usr/local/bin/python track_etf_units.py construction >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "00 19 * * * cd /app && /usr/local/bin/python track_etf_units.py ta35 >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "05 19 * * * cd /app && /usr/local/bin/python track_etf_units.py ta90 >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "10 19 * * * cd /app && /usr/local/bin/python track_etf_units.py ta125 >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+RUN echo "00 21 * * * cd /app && /usr/local/bin/python track_etf_units.py ibi >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
 
 RUN chmod 0644 /etc/cron.d/etf_cron
 RUN crontab /etc/cron.d/etf_cron
