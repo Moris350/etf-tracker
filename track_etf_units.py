@@ -9,8 +9,19 @@ from playwright.sync_api import sync_playwright
 
 HAREL_ID = "1233170"
 IBI_ID = "5141189"
-TECH_ID = "1169408" # Migdal MTF TA-Technology
-REALESTATE_ID = "1183953" # Migdal MTF TA-Real Estate
+
+SECTOR_MAP = {
+    'tech': ('1169408', 'units'),
+    'realestate': ('1183953', 'units'),
+    'harel': ('1233170', 'harel'),
+    'ibi': ('5141189', 'ibi'),
+    'banks': ('5122288', 'units'),
+    'oil': ('5140595', 'units'),
+    'construction': ('1165653', 'units'),
+    'ta35': ('1150184', 'units'),
+    'ta90': ('1150259', 'units'),
+    'ta125': ('1150283', 'units'),
+}
 
 def check_logical_value(val, fund_type):
     """
@@ -193,23 +204,17 @@ def save_to_csv(filepath, data_dict, col_name):
 
 def main():
     if len(sys.argv) < 2:
-        print("FAILED: Missing argument. Expected 'harel', 'ibi', 'tech', or 'realestate'.")
+        print("FAILED: Missing argument. Expected sector code.")
         return
         
     fund_target = sys.argv[1].lower()
     today_str = datetime.now().strftime('%Y-%m-%d')
     
-    if fund_target == 'harel':
-        fund_id, logic_type = HAREL_ID, 'harel'
-    elif fund_target == 'ibi':
-        fund_id, logic_type = IBI_ID, 'ibi'
-    elif fund_target == 'tech':
-        fund_id, logic_type = TECH_ID, 'units'
-    elif fund_target == 'realestate':
-        fund_id, logic_type = REALESTATE_ID, 'units'
-    else:
+    if fund_target not in SECTOR_MAP:
         print(f"FAILED: Unknown fund target '{fund_target}'")
         return
+        
+    fund_id, logic_type = SECTOR_MAP[fund_target]
     
     val = fetch_data(fund_id, logic_type)
     
