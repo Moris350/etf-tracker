@@ -10,6 +10,12 @@ RUN playwright install-deps chromium
 # Harel: Every day at 18:30
 RUN echo "30 18 * * * cd /app && /usr/local/bin/python track_etf_units.py harel >> /var/log/cron.log 2>&1" > /etc/cron.d/etf_cron
 
+# Technology: Every day at 18:35
+RUN echo "35 18 * * * cd /app && /usr/local/bin/python track_etf_units.py tech >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+
+# Real Estate: Every day at 18:40
+RUN echo "40 18 * * * cd /app && /usr/local/bin/python track_etf_units.py realestate >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
+
 # IBI: Every day at 21:00
 RUN echo "0 21 * * * cd /app && /usr/local/bin/python track_etf_units.py ibi >> /var/log/cron.log 2>&1" >> /etc/cron.d/etf_cron
 

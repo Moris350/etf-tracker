@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<style>
+    .chart-wrapper {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        height: 75vh;
+        width: 100%;
+    }
+    .fund-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .fund-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+    .reset-zoom-btn {
+        background: #7f8c8d; color: white; border: none; padding: 8px 15px; 
+        border-radius: 5px; cursor: pointer; transition: background 0.3s;
+    }
+    .reset-zoom-btn:hover { background: #95a5a6; }
+</style>
+
+<div class="fund-header">
+    <h2>{{ sector_title }}</h2>
+    <div>
+        <button class="reset-zoom-btn" onclick="resetZoom()">איפוס זום</button>
+        <button id="updateBtn" class="update-btn" onclick="forceUpdate()" style="margin-right: 10px;">עדכן נתונים</button>
+    </div>
+</div>
+
+<div id="loading" style="display: none;">
+    <div class="loader"></div>
+    <p>שואב נתונים היסטוריים... אנא המתן.</p>
+</div>
+
+<div id="errorMsg" style="display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #f5c6cb;"></div>
+
+<div class="chart-wrapper" id="chartWrapper">
+    <canvas id="sectorChart"></canvas>
+</div>
+
+<script>
+    const sectorId = "{{ sector_id }}"; // e.g. 'tech', 'harel'
+    const sectorTitle = "{{ sector_title }}";
+    const lineColor = "{{ color }}";
+    const bgColor = "{{ bg_color }}";
+    const unitTitle = "{{ unit_title }}";
+
+    let chartInstance = null;
+
+    function resetZoom() {
+        if (chartInstance) chartInstance.resetZoom();
+    }
+
+    function loadChartData() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('chartWrapper').style.visibility = 'hidden';
+
+        fetch('/data')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('chartWrapper').style.visibility = 'visible';
+
+                if (!data[sectorId]) return;
+                let historySeries = data[sectorId].values;
+                let timeline = data[sectorId].dates;
+
+                // Find valid data points to establish span/domain
+                let validDataCounts = historySeries.filter(val => val !== null).length;
+                if(validDataCounts === 0) return;
+
+                const commonOptions = { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                        }
+                    }, 
+                    spanGaps: true 
+                };
+
+                if(chartInstance) {
+                    chartInstance.destroy();
+                }
+
+                chartInstance = new Chart(document.getElementById('sectorChart').getContext('2d'), {
+                    type: 'line', 
+                    data: { 
+                        labels: timeline, 
+                        datasets: [{ 
+                            data: historySeries, 
+                            borderColor: lineColor, 
+                            backgroundColor: bgColor, 
+                            fill: true, 
+                            borderWidth: 3, 
+                            tension: 0.3 
+                        }] 
+                    },
+                    options: { 
+                        ...commonOptions, 
+                        scales: { 
+                            x: { type: 'time', time: { unit: 'month', displayFormats: { month: 'MM/yyyy' } } }, 
+                            y: { title: { display: true, text: unitTitle, font: {size: 14} } } 
+                        } 
+                    }
+                });
+            })
+            .catch(err => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('errorMsg').textContent = 'שגיאה בטעינת נתונים: ' + err.message;
+                document.getElementById('errorMsg').style.display = 'block';
+            });
+    }
+
+    function forceUpdate() {
+        const btn = document.getElementById('updateBtn');
+        btn.disabled = true;
+        btn.textContent = 'מעדכן...';
+        
+        fetch('/force-update', { method: 'POST' })
+            .then(() => {
+                btn.disabled = false;
+                btn.textContent = 'עדכן נתונים';
+                loadChartData(); 
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.textContent = 'עדכן נתונים';
+            });
+    }
+
+    window.onload = loadChartData;
+</script>
+{% endblock %}

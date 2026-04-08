@@ -9,6 +9,8 @@ from playwright.sync_api import sync_playwright
 
 HAREL_ID = "1233170"
 IBI_ID = "5141189"
+TECH_ID = "1169408" # Migdal MTF TA-Technology
+REALESTATE_ID = "1183953" # Migdal MTF TA-Real Estate
 
 def check_logical_value(val, fund_type):
     """
@@ -17,6 +19,10 @@ def check_logical_value(val, fund_type):
     if fund_type == 'harel':
         # Target: ~5.3 million
         if 1000000 < val < 50000000:
+            return val
+    elif fund_type == 'units':
+        # Abstract tracking funds can have significantly different unit metrics
+        if val > 0:
             return val
     elif fund_type == 'ibi':
         # Avoid common percentage figures
@@ -92,7 +98,7 @@ def extract_from_html(html, fund_type):
     return None
 
 def fetch_data(fund_id, fund_type):
-    if fund_type == 'harel':
+    if fund_type in ['harel', 'units']:
         urls = [
             f"https://market.tase.co.il/he/market_data/security/{fund_id}/historical_data/eod"
         ]
@@ -131,7 +137,7 @@ def fetch_data(fund_id, fund_type):
                     with open(os.path.join(data_dir, "debug.html"), "w", encoding="utf-8") as f:
                         f.write(html)
 
-                    if fund_type == 'harel':
+                    if fund_type in ['harel', 'units']:
                         val = extract_historical_table(html, fund_type)
                     else:
                         val = extract_from_html(html, fund_type)
@@ -187,26 +193,37 @@ def save_to_csv(filepath, data_dict, col_name):
 
 def main():
     if len(sys.argv) < 2:
-        print("FAILED: Missing argument. Expected 'harel' or 'ibi'.")
+        print("FAILED: Missing argument. Expected 'harel', 'ibi', 'tech', or 'realestate'.")
         return
         
     fund_target = sys.argv[1].lower()
     today_str = datetime.now().strftime('%Y-%m-%d')
-    fund_id = HAREL_ID if fund_target == 'harel' else IBI_ID
     
-    val = fetch_data(fund_id, fund_target)
+    if fund_target == 'harel':
+        fund_id, logic_type = HAREL_ID, 'harel'
+    elif fund_target == 'ibi':
+        fund_id, logic_type = IBI_ID, 'ibi'
+    elif fund_target == 'tech':
+        fund_id, logic_type = TECH_ID, 'units'
+    elif fund_target == 'realestate':
+        fund_id, logic_type = REALESTATE_ID, 'units'
+    else:
+        print(f"FAILED: Unknown fund target '{fund_target}'")
+        return
+    
+    val = fetch_data(fund_id, logic_type)
     
     if val is not None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(base_dir, "data")
         os.makedirs(data_dir, exist_ok=True)
         
-        if fund_target == 'harel':
+        if logic_type in ['harel', 'units']:
             # val is already a dictionary mapped from TASE
-            save_to_csv(os.path.join(data_dir, "harel_history.csv"), val, "Units")
+            save_to_csv(os.path.join(data_dir, f"{fund_target}_history.csv"), val, "Units")
         else:
             # IBI truncated to 2 decimals, dynamically cast into a single-entry dict to fit unified function
-            save_to_csv(os.path.join(data_dir, "ibi_history.csv"), {today_str: round(val, 2)}, "Assets")
+            save_to_csv(os.path.join(data_dir, f"{fund_target}_history.csv"), {today_str: round(val, 2)}, "Assets")
     else:
         print(f"FAILED to update {fund_target.upper()}.")
 
