@@ -213,9 +213,9 @@
 </div>
 
 <script>
-    const sectorId   = "{{ sector_id }}";
-    const lineColor  = "{{ color }}";
-    const unitTitle  = "{{ unit_title }}";
+    const sectorId   = {{ sector_id | tojson | safe }};
+    const lineColor  = {{ color | tojson | safe }};
+    const unitTitle  = {{ unit_title | tojson | safe }};
 
     let chartInstance = null;
     let allDates = [];
