@@ -66,13 +66,17 @@ def extract_historical_table(html, fund_type):
                     units_str = cols[units_idx].get_text(strip=True)
                     
                     try:
-                        d, m, y = date_str.split('/')
-                        iso_date = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-                        
-                        val = float(units_str.replace(',', ''))
-                        valid_val = check_logical_value(val, fund_type)
-                        if valid_val is not None:
-                            results[iso_date] = valid_val
+                        parts = date_str.split('/')
+                        if len(parts) == 3:
+                            d, m, y = parts
+                            if len(y) == 2:
+                                y = "20" + y
+                            iso_date = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                            
+                            val = float(units_str.replace(',', ''))
+                            valid_val = check_logical_value(val, fund_type)
+                            if valid_val is not None:
+                                results[iso_date] = valid_val
                     except:
                         continue
             if results:

@@ -386,8 +386,9 @@
                                 displayColors: false,
                                 callbacks: {
                                     title: items => {
-                                        const d = new Date(items[0].label);
-                                        return d.toLocaleDateString('he-IL', { day:'2-digit', month:'short', year:'numeric' });
+                                        const idx = items[0].dataIndex;
+                                        const d = new Date(allDates[idx]);
+                                        return d.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' });
                                     },
                                     label: item => `${item.raw.toFixed(3)} ${unitTitle}`
                                 }
@@ -405,11 +406,12 @@
                             x: {
                                 type: 'time',
                                 time: {
+                                    parser: 'yyyy-MM-dd',
                                     tooltipFormat: 'dd/MM/yyyy',
                                     displayFormats: {
-                                        day:   'dd MMM',
-                                        week:  'dd MMM',
-                                        month: 'MMM yy',
+                                        day:   'dd/MM',
+                                        week:  'dd/MM',
+                                        month: 'MM/yyyy',
                                         year:  'yyyy'
                                     }
                                 },
