@@ -31,70 +31,95 @@ SECTOR_CONFIG = {
         'color': '#3b82f6',
         'bg_color': 'rgba(59,130,246,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1169408'
+        'funds': [
+            {'name': 'KSM Tech', 'csv_file': 'tech_ksm.csv', 'tase_id': '5130927'},
+            {'name': 'MTF Tech', 'csv_file': 'tech_mtf.csv', 'tase_id': '1169408'}
+        ]
     },
     'realestate': {
         'title': 'ת"א נדל"ן',
         'color': '#a78bfa',
         'bg_color': 'rgba(167,139,250,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1183953'
+        'funds': [
+            {'name': 'KSM Real Estate', 'csv_file': 'realestate_ksm.csv', 'tase_id': '1146547'},
+            {'name': 'Tachlit Real Estate', 'csv_file': 'realestate_tachlit.csv', 'tase_id': '1144559'},
+            {'name': 'MTF Real Estate', 'csv_file': 'realestate_mtf.csv', 'tase_id': '1183953'}
+        ]
     },
     'harel': {
         'title': 'הראל ת"א ביטחוניות',
         'color': '#14b8a6',
         'bg_color': 'rgba(20,184,166,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1233170'
+        'funds': [
+            {'name': 'Harel Defense', 'csv_file': 'harel_history.csv', 'tase_id': '1233170'}
+        ]
     },
     'ibi': {
         'title': 'IBI נכסים מחקרית',
         'color': '#f59e0b',
         'bg_color': 'rgba(245,158,11,0.1)',
         'unit_title': 'במיליוני ש"ח (שווי נכסים)',
-        'security_id': None
+        'funds': [
+            {'name': 'IBI Core', 'csv_file': 'ibi_history.csv', 'tase_id': None}
+        ]
     },
     'banks': {
         'title': 'ת"א בנקים',
         'color': '#06b6d4',
         'bg_color': 'rgba(6,182,212,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '5122288'
+        'funds': [
+            {'name': 'KSM Banks', 'csv_file': 'banks_ksm.csv', 'tase_id': '1146430'},
+            {'name': 'Harel Banks', 'csv_file': 'banks_harel.csv', 'tase_id': '1148949'},
+            {'name': 'Tachlit Banks', 'csv_file': 'banks_tachlit.csv', 'tase_id': '1143726'}
+        ]
     },
     'oil': {
         'title': 'ת"א נפט וגז',
         'color': '#f97316',
         'bg_color': 'rgba(249,115,22,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '5140595'
+        'funds': [
+            {'name': 'Oil ETF', 'csv_file': 'oil_history.csv', 'tase_id': '5140595'}
+        ]
     },
     'construction': {
         'title': 'ת"א בנייה',
         'color': '#84cc16',
         'bg_color': 'rgba(132,204,22,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1165653'
+        'funds': [
+            {'name': 'Construction ETF', 'csv_file': 'construction_history.csv', 'tase_id': '1165653'}
+        ]
     },
     'ta35': {
         'title': 'ת"א 35',
         'color': '#e11d48',
         'bg_color': 'rgba(225,29,72,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1150184'
+        'funds': [
+            {'name': 'TA-35 MTF', 'csv_file': 'ta35_history.csv', 'tase_id': '1150184'}
+        ]
     },
     'ta90': {
         'title': 'ת"א 90',
         'color': '#8b5cf6',
         'bg_color': 'rgba(139,92,246,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1150259'
+        'funds': [
+            {'name': 'TA-90 MTF', 'csv_file': 'ta90_history.csv', 'tase_id': '1150259'}
+        ]
     },
     'ta125': {
         'title': 'ת"א 125',
         'color': '#ec4899',
         'bg_color': 'rgba(236,72,153,0.1)',
         'unit_title': "מ' יחידות (הון רשום למסחר)",
-        'security_id': '1150283'
+        'funds': [
+            {'name': 'TA-125 MTF', 'csv_file': 'ta125_history.csv', 'tase_id': '1150283'}
+        ]
     },
 }
 
@@ -129,8 +154,34 @@ def get_data():
     for sector_id, cfg in SECTOR_CONFIG.items():
         val_col = 'Assets' if sector_id == 'ibi' else 'Units'
         is_harel = sector_id == 'harel'
-        filepath = os.path.join(base_dir, 'data', f'{sector_id}_history.csv')
-        result[sector_id] = format_fund(read_fund_data(filepath, val_col, is_harel))
+        
+        sector_funds = []
+        for fund in cfg['funds']:
+            filepath = os.path.join(base_dir, 'data', fund['csv_file'])
+            fund_data = format_fund(read_fund_data(filepath, val_col, is_harel))
+            fund_data['name'] = fund['name']
+            sector_funds.append(fund_data)
+            
+        all_dates_set = set()
+        for f in sector_funds:
+            all_dates_set.update(f['dates'])
+        master_dates = sorted(list(all_dates_set))
+        
+        datasets = []
+        for f in sector_funds:
+            f_values = []
+            f_date_dict = dict(zip(f['dates'], f['values']))
+            for d in master_dates:
+                f_values.append(f_date_dict.get(d, None))
+            datasets.append({
+                'label': f['name'],
+                'data': f_values
+            })
+            
+        result[sector_id] = {
+            'master_dates': master_dates,
+            'datasets': datasets
+        }
     
     return jsonify(result)
 

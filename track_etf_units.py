@@ -10,18 +10,7 @@ from playwright.sync_api import sync_playwright
 HAREL_ID = "1233170"
 IBI_ID = "5141189"
 
-SECTOR_MAP = {
-    'tech': ('1169408', 'units'),
-    'realestate': ('1183953', 'units'),
-    'harel': ('1233170', 'harel'),
-    'ibi': ('5141189', 'ibi'),
-    'banks': ('5122288', 'units'),
-    'oil': ('5140595', 'units'),
-    'construction': ('1165653', 'units'),
-    'ta35': ('1150184', 'units'),
-    'ta90': ('1150259', 'units'),
-    'ta125': ('1150283', 'units'),
-}
+from app import SECTOR_CONFIG
 
 def check_logical_value(val, fund_type):
     """
@@ -222,27 +211,38 @@ def main():
     fund_target = sys.argv[1].lower()
     today_str = datetime.now().strftime('%Y-%m-%d')
     
-    if fund_target not in SECTOR_MAP:
+    if fund_target not in SECTOR_CONFIG:
         print(f"FAILED: Unknown fund target '{fund_target}'")
         return
         
-    fund_id, logic_type = SECTOR_MAP[fund_target]
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
     
-    val = fetch_data(fund_id, logic_type)
-    
-    if val is not None:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(base_dir, "data")
-        os.makedirs(data_dir, exist_ok=True)
+    cfg = SECTOR_CONFIG[fund_target]
+    for fund in cfg['funds']:
+        fund_id = fund['tase_id']
+        csv_file = fund['csv_file']
         
-        if logic_type in ['harel', 'units']:
-            # val is already a dictionary mapped from TASE
-            save_to_csv(os.path.join(data_dir, f"{fund_target}_history.csv"), val, "Units")
+        if not fund_id:
+            continue
+            
+        logic_type = 'units'
+        if fund_target == 'harel':
+            logic_type = 'harel'
+        elif fund_target == 'ibi':
+            logic_type = 'ibi'
+            
+        print(f"--- Fetching {fund['name']} [{fund_id}] ---")
+        val = fetch_data(fund_id, logic_type)
+        
+        if val is not None:
+            if logic_type in ['harel', 'units']:
+                save_to_csv(os.path.join(data_dir, csv_file), val, "Units")
+            else:
+                save_to_csv(os.path.join(data_dir, csv_file), {today_str: round(val, 2)}, "Assets")
         else:
-            # IBI truncated to 2 decimals, dynamically cast into a single-entry dict to fit unified function
-            save_to_csv(os.path.join(data_dir, f"{fund_target}_history.csv"), {today_str: round(val, 2)}, "Assets")
-    else:
-        print(f"FAILED to update {fund_target.upper()}.")
+            print(f"FAILED to update {fund['name']}.")
 
 if __name__ == "__main__":
     main()
