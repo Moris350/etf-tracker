@@ -91,31 +91,38 @@ def extract_from_html(html, fund_type):
     
     if fund_type == 'ibi':
         keywords = ["היקף נכסים", "שווי נכסים", "שווי שוק"]
-        for kw in keywords:
-            elements = soup.find_all(string=re.compile(kw))
-            for element in elements:
-                parent = element.parent
-                for _ in range(5):
-                    if parent is None: break
-                    text = parent.get_text(separator=' ')
-                    numbers = re.findall(r'(?<![\d.])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)(?![\d.])', text)
-                    for num_str in numbers:
-                        try:
-                            val = float(num_str.replace(',', ''))
-                            valid_val = check_logical_value(val, fund_type)
-                            if valid_val is not None:
-                                return valid_val
-                        except ValueError:
-                            continue
-                    parent = parent.parent
-        return None
+    elif fund_type in ['units', 'harel']:
+        keywords = ["הון רשום למסחר"]
+    else:
+        keywords = []
 
+    for kw in keywords:
+        elements = soup.find_all(string=re.compile(kw))
+        for element in elements:
+            parent = element.parent
+            for _ in range(5):
+                if parent is None: break
+                text = parent.get_text(separator=' ')
+                numbers = re.findall(r'(?<![\d.])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)(?![\d.])', text)
+                for num_str in numbers:
+                    try:
+                        val = float(num_str.replace(',', ''))
+                        valid_val = check_logical_value(val, fund_type)
+                        if valid_val is not None:
+                            return valid_val
+                    except ValueError:
+                        continue
+                parent = parent.parent
     return None
 
 def fetch_data(fund_id, fund_type):
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    combined_results = {}
+
     if fund_type in ['harel', 'units']:
         urls = [
-            f"https://market.tase.co.il/he/market_data/security/{fund_id}/historical_data/eod"
+            f"https://market.tase.co.il/he/market_data/security/{fund_id}/historical_data/eod",
+            f"https://market.tase.co.il/he/market_data/security/{fund_id}/major_data"
         ]
     else:
         urls = [
@@ -135,7 +142,6 @@ def fetch_data(fund_id, fund_type):
                 try:
                     print(f"[{fund_id}] Trying {url}...")
                     
-                    # Navigate and wait for DOM completely loaded, plus 3 seconds for XHR/React hydrate
                     page.goto(url, wait_until="domcontentloaded", timeout=25000)
                     page.wait_for_timeout(3000)
                     
@@ -144,31 +150,33 @@ def fetch_data(fund_id, fund_type):
                     if "Just a moment" in html or "Cloudflare" in html:
                         print(f"[{fund_id}] Blocked by Cloudflare on this site.")
                         continue
-                        
-                    # DEBUG SNAPSHOT
-                    base_dir = os.path.dirname(os.path.abspath(__file__))
-                    data_dir = os.path.join(base_dir, "data")
-                    os.makedirs(data_dir, exist_ok=True)
-                    with open(os.path.join(data_dir, "debug.html"), "w", encoding="utf-8") as f:
-                        f.write(html)
 
                     if fund_type in ['harel', 'units']:
-                        val = extract_historical_table(html, fund_type)
+                        if "historical_data" in url:
+                            val = extract_historical_table(html, fund_type)
+                            if val:
+                                combined_results.update(val)
+                                print(f"[{fund_id}] SUCCESS! Extracted {len(val)} history records.")
+                        else:
+                            val = extract_from_html(html, fund_type)
+                            if val:
+                                combined_results[today_str] = val
+                                print(f"[{fund_id}] SUCCESS! Extracted LIVE today value: {val}")
                     else:
                         val = extract_from_html(html, fund_type)
-                        
-                    if val is not None and (isinstance(val, dict) and len(val) > 0 or not isinstance(val, dict)):
-                        success_msg = f"SUCCESS! Found {len(val)} records" if isinstance(val, dict) else f"SUCCESS! Found logical value -> {val}"
-                        print(f"[{fund_id}] {success_msg} on {url}")
-                        browser.close()
-                        return val
-                    else:
-                        print(f"[{fund_id}] Page loaded, but no logical numbers matched.")
+                        if val:
+                            combined_results[today_str] = val
+                            print(f"[{fund_id}] SUCCESS! Extracted LIVE today value: {val}")
+                            browser.close()
+                            return combined_results
 
                 except Exception as e:
                     print(f"[{fund_id}] Error connecting to {url}: {e}")
 
             browser.close()
+            
+            if combined_results:
+                return combined_results
             
     except Exception as e:
         print(f"[{fund_id}] Playwright error: {e}")
