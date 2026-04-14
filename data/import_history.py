@@ -44,6 +44,11 @@ def main():
                 
             date_idx = headers.index('תאריך')
             units_idx = headers.index('הון רשום למסחר')
+            assets_idx = -1
+            for i, h in enumerate(headers):
+                if "שווי שוק" in h:
+                    assets_idx = i
+                    break
             
             for row in reader:
                 # Some rows might be empty or short
@@ -62,8 +67,17 @@ def main():
                     iso_date = dt.strftime('%Y-%m-%d')
                     val = float(unit_str)
                     
-                    if val > 0:
-                        data_dict[iso_date] = val
+                    assets_val = 0.0
+                    if assets_idx >= 0 and len(row) > assets_idx:
+                        a_str = row[assets_idx].strip().replace(',', '')
+                        if a_str:
+                            try:
+                                assets_val = float(a_str)
+                            except:
+                                pass
+                    
+                    if val > 0 or assets_val > 0:
+                        data_dict[iso_date] = {"units": val, "assets": assets_val}
                 except Exception as e:
                     pass
                     

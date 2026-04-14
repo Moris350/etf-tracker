@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template, jsonify
 from datetime import datetime
 
@@ -14,11 +15,15 @@ def read_fund_data(filepath, val_col, is_harel=False):
             for row in csv.DictReader(f):
                 try:
                     date_obj = datetime.strptime(row['Date'], '%Y-%m-%d')
-                    val = float(row[val_col])
+                    raw = row.get(val_col, '').strip()
+                    if not raw:
+                        continue
+                    val = float(raw)
                     if is_harel or val_col == "Units": 
                         val /= 1000000  # Scale down generic 'Units' data to millions for symmetric design display
                     data_dict[date_obj] = val
-                except: pass
+                except (ValueError, KeyError):
+                    continue
     return data_dict
 
 @app.route('/')
@@ -188,19 +193,43 @@ def get_data():
 @app.route('/force-update', methods=['POST'])
 def force_update():
     try:
-        # Use sys.executable to ensure we use the correct python interpreter inside docker
         python_bin = sys.executable
         base_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.join(base_dir, 'track_etf_units.py')
         
-        logs = ""
+        sector_ids = list(SECTOR_CONFIG.keys())
+        results = {}
         has_errors = False
-        
-        for sector_id in SECTOR_CONFIG.keys():
-            res = subprocess.run([python_bin, script_path, sector_id], capture_output=True, text=True)
-            logs += f"--- {sector_id.upper()} Update ---\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}\n\n"
-            if res.returncode != 0 or "FAILED" in res.stdout:
-                has_errors = True
+
+        def run_sector(sector_id):
+            res = subprocess.run(
+                [python_bin, script_path, sector_id],
+                capture_output=True, text=True, timeout=180
+            )
+            return sector_id, res
+
+        # Run ALL sectors in parallel (max 4 concurrent browsers)
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {pool.submit(run_sector, sid): sid for sid in sector_ids}
+            for future in as_completed(futures):
+                try:
+                    sector_id, res = future.result()
+                    results[sector_id] = {
+                        'stdout': res.stdout,
+                        'stderr': res.stderr,
+                        'ok': res.returncode == 0 and 'FAILED' not in res.stdout
+                    }
+                    if not results[sector_id]['ok']:
+                        has_errors = True
+                except Exception as e:
+                    sid = futures[future]
+                    results[sid] = {'stdout': '', 'stderr': str(e), 'ok': False}
+                    has_errors = True
+
+        logs = ""
+        for sid in sector_ids:
+            r = results.get(sid, {})
+            logs += f"--- {sid.upper()} ---\n{r.get('stdout','')}\n{r.get('stderr','')}\n\n"
         
         if has_errors:
             print(f"Update finished with some errors. Logs:\n{logs}")
@@ -209,16 +238,7 @@ def force_update():
         print(f"Update successful. Logs:\n{logs}")
         return jsonify({"status": "success", "logs": logs})
         
-    except FileNotFoundError as e:
-        error_msg = f"שגיאה: הקובץ לא נמצא. {str(e)}"
-        print(error_msg)
-        return jsonify({"status": "error", "message": error_msg}), 500
-    except subprocess.CalledProcessError as e:
-        error_msg = f"שגיאת הרצה של הסקריפט: {e.output}"
-        print(error_msg)
-        return jsonify({"status": "error", "message": error_msg}), 500
     except Exception as e:
-        # Catch ANY other error and send it back to the browser instead of crashing silently
         error_msg = f"שגיאה כללית בשרת: {str(e)}"
         print(error_msg)
         return jsonify({"status": "error", "message": error_msg}), 500
