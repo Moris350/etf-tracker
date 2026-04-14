@@ -46,6 +46,11 @@ def extract_historical_table(html, fund_type):
         if "תאריך" in headers and "הון רשום למסחר" in headers:
             date_idx = headers.index("תאריך")
             units_idx = headers.index("הון רשום למסחר")
+            assets_idx = -1
+            for i, h in enumerate(headers):
+                if "שווי שוק" in h:
+                    assets_idx = i
+                    break
             
             rows = table.find_all('tr')
             for row in rows:
@@ -64,8 +69,18 @@ def extract_historical_table(html, fund_type):
                             
                             val = float(units_str.replace(',', ''))
                             valid_val = check_logical_value(val, fund_type)
+                            
                             if valid_val is not None:
-                                results[iso_date] = valid_val
+                                assets_val = 0.0
+                                if assets_idx >= 0 and len(cols) > assets_idx:
+                                    ast_str = cols[assets_idx].get_text(strip=True).replace(',', '')
+                                    if ast_str:
+                                        try:
+                                            assets_val = float(ast_str)
+                                        except:
+                                            pass
+                                
+                                results[iso_date] = {"units": valid_val, "assets": assets_val}
                     except:
                         continue
             if results:
@@ -78,33 +93,52 @@ def extract_from_html(html, fund_type):
     """
     soup = BeautifulSoup(html, 'html.parser')
     
+    extracted_units = 0.0
+    extracted_assets = 0.0
+    
     if fund_type == 'ibi':
-        keywords = ["היקף נכסים", "שווי נכסים", "שווי שוק"]
-    elif fund_type in ['units', 'harel']:
-        keywords = ["הון רשום למסחר"]
+        keywords_units = []
+        keywords_assets = ["היקף נכסים", "שווי נכסים", "שווי שוק"]
     else:
-        keywords = []
+        keywords_units = ["הון רשום למסחר"]
+        keywords_assets = ["שווי שוק"]
 
-    for kw in keywords:
-        elements = soup.find_all(string=re.compile(kw))
-        for element in elements:
-            parent = element.parent
-            for _ in range(5):
-                if parent is None: break
-                text = parent.get_text(separator=' ')
-                numbers = re.findall(r'(?<![\d.])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)(?![\d.])', text)
-                for num_str in numbers:
-                    try:
-                        val = float(num_str.replace(',', ''))
-                        valid_val = check_logical_value(val, fund_type)
-                        if valid_val is not None:
-                            return valid_val
-                    except ValueError:
-                        continue
-                parent = parent.parent
+    def extract_value_for_keywords(keywords):
+        for kw in keywords:
+            elements = soup.find_all(string=re.compile(kw))
+            for element in elements:
+                parent = element.parent
+                for _ in range(5):
+                    if parent is None: break
+                    text = parent.get_text(separator=' ')
+                    numbers = re.findall(r'(?<![\d.])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)(?![\d.])', text)
+                    for num_str in numbers:
+                        try:
+                            val = float(num_str.replace(',', ''))
+                            # Only apply logical check if fund_type requires it FOR UNITS.
+                            # If checking assets, bypass logical check so any valid float is captured.
+                            valid_val = None
+                            if 'הון' in kw or ('יחידות' in kw) or ('נכסים' in kw and fund_type == 'ibi'):
+                                valid_val = check_logical_value(val, fund_type)
+                            else:
+                                valid_val = float(val)
+                                
+                            if valid_val is not None and valid_val > 0:
+                                return valid_val
+                        except ValueError:
+                            continue
+                    parent = parent.parent
+        return 0.0
+
+    extracted_units = extract_value_for_keywords(keywords_units)
+    extracted_assets = extract_value_for_keywords(keywords_assets)
+    
+    if extracted_units > 0 or extracted_assets > 0:
+        return {"units": extracted_units, "assets": extracted_assets}
+    
     return None
 
-def fetch_data(fund_id, fund_type):
+def fetch_data(fund_id, fund_type, shared_page=None):
     today_str = datetime.now().strftime('%Y-%m-%d')
     combined_results = {}
 
@@ -119,56 +153,61 @@ def fetch_data(fund_id, fund_type):
             f"https://market.tase.co.il/he/market_data/fund/{fund_id}/major_data"
         ]
 
+    owns_browser = shared_page is None
+    browser = None
+    page = shared_page
+
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+        if owns_browser:
+            pw = sync_playwright().start()
+            browser = pw.chromium.launch(headless=True)
             context = browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             )
             page = context.new_page()
 
-            for url in urls:
-                try:
-                    print(f"[{fund_id}] Trying {url}...")
-                    
-                    page.goto(url, wait_until="domcontentloaded", timeout=25000)
-                    page.wait_for_timeout(3000)
-                    
-                    html = page.content()
-                    
-                    if "Just a moment" in html or "Cloudflare" in html:
-                        print(f"[{fund_id}] Blocked by Cloudflare on this site.")
-                        continue
+        for url in urls:
+            try:
+                print(f"[{fund_id}] Trying {url}...")
+                
+                page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                page.wait_for_timeout(3000)
+                
+                html = page.content()
+                
+                if "Just a moment" in html or "Cloudflare" in html:
+                    print(f"[{fund_id}] Blocked by Cloudflare on this site.")
+                    continue
 
-                    if fund_type in ['harel', 'units']:
-                        if "historical_data" in url:
-                            val = extract_historical_table(html, fund_type)
-                            if val:
-                                combined_results.update(val)
-                                print(f"[{fund_id}] SUCCESS! Extracted {len(val)} history records.")
-                        else:
-                            val = extract_from_html(html, fund_type)
-                            if val:
-                                combined_results[today_str] = val
-                                print(f"[{fund_id}] SUCCESS! Extracted LIVE today value: {val}")
+                if fund_type in ['harel', 'units']:
+                    if "historical_data" in url:
+                        val = extract_historical_table(html, fund_type)
+                        if val:
+                            combined_results.update(val)
+                            print(f"[{fund_id}] SUCCESS! Extracted {len(val)} history records.")
                     else:
                         val = extract_from_html(html, fund_type)
                         if val:
                             combined_results[today_str] = val
                             print(f"[{fund_id}] SUCCESS! Extracted LIVE today value: {val}")
-                            browser.close()
-                            return combined_results
+                else:
+                    val = extract_from_html(html, fund_type)
+                    if val:
+                        combined_results[today_str] = val
+                        print(f"[{fund_id}] SUCCESS! Extracted LIVE today value: {val}")
+                        break
 
-                except Exception as e:
-                    print(f"[{fund_id}] Error connecting to {url}: {e}")
+            except Exception as e:
+                print(f"[{fund_id}] Error connecting to {url}: {e}")
 
-            browser.close()
-            
-            if combined_results:
-                return combined_results
+        if combined_results:
+            return combined_results
             
     except Exception as e:
         print(f"[{fund_id}] Playwright error: {e}")
+    finally:
+        if owns_browser and browser:
+            browser.close()
 
     print(f"[{fund_id}] FAILED completely on all sources.")
     return None
@@ -182,26 +221,48 @@ def save_to_csv(filepath, data_dict, col_name):
             reader = csv.reader(file)
             headers = next(reader, None) # Skip header
             for row in reader:
-                if len(row) == 2:
-                    merged_data[row[0]] = row[1]
+                if len(row) >= 2:
+                    units_val = float(row[1]) if row[1] else 0.0
+                    assets_val = 0.0
+                    if len(row) >= 3 and row[2]:
+                        try:
+                            assets_val = float(row[2])
+                        except:
+                            pass
+                    merged_data[row[0]] = {"units": units_val, "assets": assets_val}
                     
-    # Update with new data (Upsert implicitly updates values or appends missing ones)
+    # Update with new data
     for date_key, val in data_dict.items():
-        merged_data[date_key] = val
-        
-    # Sort chronologically by date keys (YYYY-MM-DD naturally sorts alphabetically)
-    sorted_dates = sorted(merged_data.keys())
+        if isinstance(val, dict):
+            # If we received {"units": x, "assets": y}, merge intelligently
+            existing = merged_data.get(date_key, {"units": 0.0, "assets": 0.0})
+            if val.get("units", 0) > 0:
+                existing["units"] = val["units"]
+            if val.get("assets", 0) > 0:
+                existing["assets"] = val["assets"]
+            merged_data[date_key] = existing
+        else:
+            # Legacy fallback if val is just a number
+            existing = merged_data.get(date_key, {"units": 0.0, "assets": 0.0})
+            existing["units"] = float(val)
+            merged_data[date_key] = existing
+
+    # Sort chronological
+    sorted_dates = sorted(merged_data.keys(), key=lambda x: datetime.strptime(x, '%Y-%m-%d'))
     
     # Write back
-    rows = [['Date', col_name]]
-    for date_key in sorted_dates:
-        rows.append([date_key, merged_data[date_key]])
-        
     with open(filepath, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerows(rows)
-        
-    print(f"[{col_name}] Synced CSV with {len(data_dict)} records. Total archive size: {len(sorted_dates)}")
+        writer.writerow(["Date", "Units", "Assets"])
+        for d in sorted_dates:
+            units = merged_data[d]["units"]
+            # Convert units to exact format (integer str if `.0`, otherwise float)
+            u_str = f"{int(units)}" if units.is_integer() else f"{units}"
+            assets = merged_data[d]["assets"]
+            a_str = f"{assets:.2f}" if assets > 0 else ""
+            writer.writerow([d, u_str, a_str])
+
+    print(f"[Units/Assets] Synced CSV with {len(sorted_dates)} records. Total archive size: {len(sorted_dates)}")
 
 def main():
     if len(sys.argv) < 2:
@@ -209,7 +270,6 @@ def main():
         return
         
     fund_target = sys.argv[1].lower()
-    today_str = datetime.now().strftime('%Y-%m-%d')
     
     if fund_target not in SECTOR_CONFIG:
         print(f"FAILED: Unknown fund target '{fund_target}'")
@@ -220,29 +280,52 @@ def main():
     os.makedirs(data_dir, exist_ok=True)
     
     cfg = SECTOR_CONFIG[fund_target]
+    
+    # Collect funds to fetch
+    jobs = []
     for fund in cfg['funds']:
-        fund_id = fund['tase_id']
-        csv_file = fund['csv_file']
-        
-        if not fund_id:
+        if not fund['tase_id']:
             continue
-            
         logic_type = 'units'
         if fund_target == 'harel':
             logic_type = 'harel'
         elif fund_target == 'ibi':
             logic_type = 'ibi'
-            
-        print(f"--- Fetching {fund['name']} [{fund_id}] ---")
-        val = fetch_data(fund_id, logic_type)
+        jobs.append((fund, logic_type))
+    
+    if not jobs:
+        print("No fetchable funds in this sector.")
+        return
+    
+    # Launch ONE browser for all funds in this sector
+    pw = None
+    browser = None
+    try:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
         
-        if val is not None:
-            if logic_type in ['harel', 'units']:
+        for fund, logic_type in jobs:
+            fund_id = fund['tase_id']
+            csv_file = fund['csv_file']
+            
+            print(f"--- Fetching {fund['name']} [{fund_id}] ---")
+            val = fetch_data(fund_id, logic_type, shared_page=page)
+            
+            if val is not None:
                 save_to_csv(os.path.join(data_dir, csv_file), val, "Units")
             else:
-                save_to_csv(os.path.join(data_dir, csv_file), {today_str: round(val, 2)}, "Assets")
-        else:
-            print(f"FAILED to update {fund['name']}.")
+                print(f"FAILED to update {fund['name']}.")
+    except Exception as e:
+        print(f"Browser launch error: {e}")
+    finally:
+        if browser:
+            browser.close()
+        if pw:
+            pw.stop()
 
 if __name__ == "__main__":
-    main()
+    main()
