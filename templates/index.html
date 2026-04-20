@@ -26,7 +26,7 @@
         grid-template-columns: repeat(2, 1fr);
         gap: 16px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
         .sectors-grid { grid-template-columns: 1fr; }
     }
 
@@ -35,11 +35,11 @@
         background: var(--bg-card);
         border: 1px solid var(--border-color);
         border-radius: var(--radius);
-        padding: 24px;
         text-decoration: none;
         color: inherit;
-        display: block;
-        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.25s ease;
         position: relative;
         overflow: hidden;
     }
@@ -49,75 +49,153 @@
         top: 0; left: 0; right: 0;
         height: 3px;
         background: var(--card-accent, var(--accent-blue));
-        opacity: 0.8;
+        opacity: 0.85;
     }
     .sector-card:hover {
         border-color: rgba(255,255,255,0.12);
         transform: translateY(-3px);
-        box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.4);
     }
 
-    .card-top {
+    .card-header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 18px;
+        align-items: center;
+        padding: 20px 22px 14px 22px;
     }
     .card-name {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         color: var(--text-primary);
     }
-    .card-sub {
-        font-size: 12px;
+    .card-count {
+        font-size: 11px;
+        font-weight: 600;
         color: var(--text-muted);
-        margin-top: 3px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--border-color);
+        padding: 3px 10px;
+        border-radius: 100px;
     }
-    .card-icon {
-        font-size: 22px;
-        opacity: 0.7;
+    .card-unit-title {
+        font-size: 11px;
+        color: var(--text-muted);
+        padding: 0 22px 12px;
     }
 
-    .card-value {
-        font-size: 32px;
+    /* ── Sector aggregate row ── */
+    .sector-aggregate {
+        padding: 0 22px 14px;
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+    }
+    .agg-value {
+        font-size: 28px;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        letter-spacing: -1px;
-        margin-bottom: 6px;
+        letter-spacing: -0.8px;
     }
-    .card-unit {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-bottom: 14px;
+    .agg-pct {
+        font-size: 13px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
     }
+    .agg-pct.up   { background: rgba(34,197,94,0.12); color: var(--accent-green); }
+    .agg-pct.down { background: rgba(239,68,68,0.12); color: var(--accent-red); }
+    .agg-pct.flat { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
-    .card-stats {
-        display: flex;
-        gap: 16px;
-        padding-top: 14px;
-        border-top: 1px solid var(--border-color);
+    /* ── Fund rows table ── */
+    .fund-table {
+        width: 100%;
+        border-collapse: collapse;
     }
-    .stat-item {
-        flex: 1;
-    }
-    .stat-label {
+    .fund-table thead th {
+        padding: 8px 22px;
         font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.6px;
         color: var(--text-muted);
-        margin-bottom: 3px;
+        text-align: right;
+        background: rgba(255,255,255,0.02);
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
     }
-    .stat-value {
-        font-size: 14px;
-        font-weight: 600;
+    .fund-table thead th:last-child { text-align: left; }
+    .fund-table tbody tr {
+        transition: background 0.15s;
+    }
+    .fund-table tbody tr:hover {
+        background: rgba(255,255,255,0.03);
+    }
+    .fund-table tbody td {
+        padding: 10px 22px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border-bottom: 1px solid rgba(255,255,255,0.03);
         font-variant-numeric: tabular-nums;
     }
+    .fund-table tbody td:last-child { text-align: left; }
+    .fund-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .fund-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .fund-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 12.5px;
+    }
+    .fund-val {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .fund-pct {
+        font-weight: 600;
+        font-size: 12px;
+    }
 
+    /* ── Sparkline canvas ── */
+    .sparkline-cell {
+        width: 80px;
+        height: 32px;
+    }
+
+    .up   { color: var(--accent-green); }
+    .down { color: var(--accent-red); }
+    .flat { color: var(--text-muted); }
+
+    /* Card footer */
+    .card-footer {
+        padding: 12px 22px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-footer .total-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+    .card-footer .total-pct {
+        font-size: 12px;
+        font-weight: 600;
+    }
     .cta-arrow {
         font-size: 11px;
         color: var(--text-muted);
-        margin-top: 14px;
         display: flex;
         align-items: center;
         gap: 4px;
@@ -125,11 +203,15 @@
     }
     .sector-card:hover .cta-arrow { color: var(--accent-blue); }
 
-    .up   { color: var(--accent-green); }
-    .down { color: var(--accent-red); }
-    .flat { color: var(--text-muted); }
+    /* ── Fund color palette ── */
+    .fc0 { background: #3b82f6; }
+    .fc1 { background: #f59e0b; }
+    .fc2 { background: #22c55e; }
+    .fc3 { background: #ef4444; }
+    .fc4 { background: #a78bfa; }
 </style>
 
+<!-- Header -->
 <div class="overview-header">
     <div>
         <h1>סקירת שוק — סקטורי TASE</h1>
@@ -151,28 +233,53 @@
 
 <div class="sectors-grid" id="sectorsGrid" style="display:none;">
     {% for sector_id, cfg in sectors.items() %}
-    <a href="/sector/{{ sector_id }}" class="sector-card" style="--card-accent: {{ cfg.color }};">
-        <div class="card-top">
+    <a href="/sector/{{ sector_id }}" class="sector-card" id="card_{{ sector_id }}" style="--card-accent: {{ cfg.color }};">
+        <div class="card-header">
+            <div class="card-name">{{ cfg.title }}</div>
+            <div class="card-count">{{ cfg.funds|length }} תעודות</div>
+        </div>
+        <div class="card-unit-title">{{ cfg.unit_title }}</div>
+
+        <!-- Aggregate sector value -->
+        <div class="sector-aggregate">
+            <div class="agg-value" id="{{ sector_id }}_agg_val">—</div>
+            <div class="agg-pct flat" id="{{ sector_id }}_agg_pct">—</div>
+        </div>
+
+        <!-- Fund breakdown table -->
+        <table class="fund-table">
+            <thead>
+                <tr>
+                    <th>תעודה</th>
+                    <th>ערך נוכחי</th>
+                    <th>יומי</th>
+                    <th>7 ימים</th>
+                </tr>
+            </thead>
+            <tbody id="{{ sector_id }}_funds">
+                {% for fund in cfg.funds %}
+                <tr>
+                    <td>
+                        <div class="fund-name-cell">
+                            <div class="fund-dot fc{{ loop.index0 % 5 }}"></div>
+                            <span class="fund-name">{{ fund.name }}</span>
+                        </div>
+                    </td>
+                    <td class="fund-val" id="{{ sector_id }}_f{{ loop.index0 }}_val">—</td>
+                    <td class="fund-pct" id="{{ sector_id }}_f{{ loop.index0 }}_daily">—</td>
+                    <td class="fund-pct" id="{{ sector_id }}_f{{ loop.index0 }}_week">—</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="card-footer">
             <div>
-                <div class="card-name">{{ cfg.title }}</div>
-                <div class="card-sub">
-                    {% if cfg.security_id %}Security ID: {{ cfg.security_id }}{% else %}Tracked Internally{% endif %}
-                </div>
+                <div class="total-label">מתחילת המעקב</div>
+                <div class="total-pct" id="{{ sector_id }}_inception">—</div>
             </div>
+            <div class="cta-arrow">לגרף המלא ←</div>
         </div>
-        <div class="card-value" id="{{ sector_id }}_val">—</div>
-        <div class="card-unit">{{ cfg.unit_title }}</div>
-        <div class="card-stats">
-            <div class="stat-item">
-                <div class="stat-label">יומי</div>
-                <div class="stat-value" id="{{ sector_id }}_daily">—</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">מתחילת המעקב</div>
-                <div class="stat-value" id="{{ sector_id }}_total">—</div>
-            </div>
-        </div>
-        <div class="cta-arrow">לגרף המלא ←</div>
     </a>
     {% endfor %}
 </div>
@@ -187,26 +294,12 @@ function pctChange(current, reference) {
     return { text: `${sign}${pct.toFixed(2)}%`, cls: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat' };
 }
 
-function populateCard(prefix, fund) {
-    if (!fund || !fund.values || fund.values.length === 0) return;
-    const vals = fund.values;
-    const current = vals[vals.length - 1];
-    const prev    = vals.length > 1 ? vals[vals.length - 2] : null;
-    const first   = vals[0];
-
-    const valEl = document.getElementById(prefix + '_val');
-    valEl.textContent = fmt(current);
-    const daily = pctChange(current, prev);
-    valEl.className = 'card-value ' + daily.cls;
-
-    const dailyEl = document.getElementById(prefix + '_daily');
-    dailyEl.textContent = daily.text;
-    dailyEl.className = 'stat-value ' + daily.cls;
-
-    const total = pctChange(current, first);
-    const totalEl = document.getElementById(prefix + '_total');
-    totalEl.textContent = total.text;
-    totalEl.className = 'stat-value ' + total.cls;
+function getValueAt(arr, idx) {
+    // Walk backwards from idx to find a non-null value
+    for (let i = idx; i >= 0; i--) {
+        if (arr[i] != null) return arr[i];
+    }
+    return null;
 }
 
 function loadStats() {
@@ -216,19 +309,84 @@ function loadStats() {
             document.getElementById('loadingBlock').style.display = 'none';
             document.getElementById('sectorsGrid').style.display = 'grid';
 
-            {% for sector_id in sectors.keys() %}
-            populateCard('{{ sector_id }}', data.{{ sector_id }});
-            {% endfor %}
+            let globalMaxDate = null;
 
-            let maxDate = null;
-            Object.keys(data).forEach(k => {
-                if (data[k] && data[k].dates && data[k].dates.length) {
-                    const d = data[k].dates[data[k].dates.length - 1];
-                    if (!maxDate || d > maxDate) maxDate = d;
+            Object.keys(data).forEach(sectorId => {
+                const sector = data[sectorId];
+                if (!sector || !sector.master_dates || !sector.datasets) return;
+
+                const dates = sector.master_dates;
+                const datasets = sector.datasets;
+                const lastIdx = dates.length - 1;
+
+                if (lastIdx < 0) return;
+
+                if (!globalMaxDate || dates[lastIdx] > globalMaxDate)
+                    globalMaxDate = dates[lastIdx];
+
+                // Calculate aggregate (sum of all funds' latest values)
+                let aggCurrent = 0, aggPrev = 0, aggFirst = 0;
+                let hasCurrent = false;
+
+                // Find index for ~7 days ago
+                const lastDate = new Date(dates[lastIdx]);
+                let weekIdx = lastIdx;
+                for (let i = lastIdx; i >= 0; i--) {
+                    const d = new Date(dates[i]);
+                    if ((lastDate - d) / 86400000 >= 7) { weekIdx = i; break; }
+                }
+
+                datasets.forEach((ds, fi) => {
+                    const vals = ds.data;
+                    const current = getValueAt(vals, lastIdx);
+                    const prev = lastIdx > 0 ? getValueAt(vals, lastIdx - 1) : null;
+                    const first = getValueAt(vals, 0);
+                    const weekVal = getValueAt(vals, weekIdx);
+
+                    // Populate fund row
+                    const valEl = document.getElementById(`${sectorId}_f${fi}_val`);
+                    const dailyEl = document.getElementById(`${sectorId}_f${fi}_daily`);
+                    const weekEl = document.getElementById(`${sectorId}_f${fi}_week`);
+
+                    if (valEl) valEl.textContent = fmt(current);
+                    if (dailyEl) {
+                        const d = pctChange(current, prev);
+                        dailyEl.textContent = d.text;
+                        dailyEl.className = 'fund-pct ' + d.cls;
+                    }
+                    if (weekEl) {
+                        const w = pctChange(current, weekVal);
+                        weekEl.textContent = w.text;
+                        weekEl.className = 'fund-pct ' + w.cls;
+                    }
+
+                    if (current != null) {
+                        aggCurrent += current;
+                        hasCurrent = true;
+                    }
+                    if (prev != null) aggPrev += prev;
+                    if (first != null) aggFirst += first;
+                });
+
+                // Aggregate sector value
+                const aggValEl = document.getElementById(`${sectorId}_agg_val`);
+                const aggPctEl = document.getElementById(`${sectorId}_agg_pct`);
+                const incEl = document.getElementById(`${sectorId}_inception`);
+
+                if (hasCurrent) {
+                    aggValEl.textContent = fmt(aggCurrent);
+                    const agg = pctChange(aggCurrent, aggPrev);
+                    aggPctEl.textContent = agg.text;
+                    aggPctEl.className = 'agg-pct ' + agg.cls;
+
+                    const inc = pctChange(aggCurrent, aggFirst);
+                    incEl.textContent = inc.text;
+                    incEl.className = 'total-pct ' + inc.cls;
                 }
             });
-            if (maxDate) {
-                const p = maxDate.split('-');
+
+            if (globalMaxDate) {
+                const p = globalMaxDate.split('-');
                 document.getElementById('lastUpdated').textContent =
                     `נתונים ל-${p[2]}/${p[1]}/${p[0]} · TASE Listed Sector ETFs`;
             }
@@ -249,16 +407,16 @@ function forceUpdate() {
     fetch('/force-update', { method: 'POST' })
         .then(r => r.json())
         .then(res => {
-            btn.disabled = false; btn.textContent = '⟳ עדכן הכל'; 
+            btn.disabled = false; btn.textContent = '⟳ עדכן הכל';
             if (res.status === 'error') {
                 alert(res.message);
             }
-            loadStats(); 
+            loadStats();
         })
-        .catch(err => { 
-            btn.disabled = false; btn.textContent = '⟳ עדכן הכל'; 
+        .catch(err => {
+            btn.disabled = false; btn.textContent = '⟳ עדכן הכל';
             console.error(err);
-            loadStats(); 
+            loadStats();
         });
 }
 
